@@ -60,6 +60,17 @@
     </div>
 
     <div class="max-w-lg mx-auto px-4 space-y-6">
+        <div class="bg-gray-900 p-4 rounded-2xl border border-gray-700 shadow-lg">
+            <div class="flex gap-2">
+                <input type="text" id="searchInput" placeholder="TVS-XXXXXX" class="flex-1 p-3 bg-gray-800 rounded-xl outline-none text-white border border-gray-700 uppercase">
+                <button onclick="searchMemo()" id="searchBtn" class="bg-blue-600 px-6 py-3 rounded-xl font-bold text-white bn-text">সার্চ</button>
+            </div>
+            <div id="searchOptions" class="hidden mt-4 flex gap-2">
+                <button onclick="quickDownload()" class="flex-1 bg-green-700 py-2 rounded-lg font-bold text-sm text-white bn-text">সরাসরি ডাউনলোড</button>
+                <button onclick="editMemo()" class="flex-1 bg-yellow-600 py-2 rounded-lg font-bold text-sm text-white bn-text">এডিট মেমো</button>
+            </div>
+        </div>
+
         <div class="bg-gray-900 p-6 rounded-3xl space-y-4 border border-gray-800 shadow-2xl mb-10">
             <input type="text" id="cName" placeholder="ক্রেতার নাম" class="w-full p-4 bg-gray-800 rounded-xl outline-none text-white border border-gray-700 bn-text">
             <input type="text" id="cPhone" placeholder="ফোন নম্বর" class="w-full p-4 bg-gray-800 rounded-xl outline-none text-white border border-gray-700">
@@ -118,7 +129,7 @@
         <div class="border-t border-black text-[8px] pt-1 bn-text text-center w-20">কর্তৃপক্ষ</div>
     </div>
     
-    <p class="text-center text-[8px] text-gray-500 mt-4 border-t pt-1">System by Nazrul AI | 01727003670</p>
+    <p class="text-center text-[8px] text-gray-500 mt-4 border-t pt-1 bn-text">System by Nazrul AI | 01727003670</p>
 </div>
 
 <script type="module">
@@ -137,6 +148,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     let settings = {};
+    let lastSearchData = null;
+    let editMode = false;
+    let currentEditId = null;
 
     onSnapshot(doc(db, "admin", "settings"), (doc) => {
         if(doc.exists()){
@@ -177,6 +191,45 @@
         } else { alert(settings.error || "ভুল পাসওয়ার্ড!"); }
     };
 
+    window.searchMemo = async () => {
+        const id = document.getElementById('searchInput').value.trim().toUpperCase();
+        if(!id) return alert("আইডি দিন!");
+        const docSnap = await getDoc(doc(db, "receipts", id));
+        if (docSnap.exists()) {
+            lastSearchData = docSnap.data();
+            document.getElementById('searchOptions').classList.remove('hidden');
+            alert("মেমো পাওয়া গেছে!");
+        } else { 
+            document.getElementById('searchOptions').classList.add('hidden');
+            alert("পাওয়া যায়নি!"); 
+        }
+    };
+
+    window.quickDownload = async () => {
+        updateReceiptView(lastSearchData);
+        await captureAndDownload(lastSearchData.id);
+    };
+
+    window.editMemo = () => {
+        editMode = true;
+        currentEditId = lastSearchData.id;
+        document.getElementById('cName').value = lastSearchData.cName;
+        document.getElementById('cPhone').value = lastSearchData.cPhone;
+        const list = document.getElementById('itemsList');
+        list.innerHTML = "";
+        lastSearchData.items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = "item-row flex gap-2 items-center";
+            div.innerHTML = `<input type="text" value="${item.n}" class="item-n flex-1 p-4 bg-gray-800 rounded-xl text-sm text-white border border-gray-700 bn-text">
+                             <input type="number" value="${item.p}" class="item-p w-24 p-4 bg-gray-800 rounded-xl text-sm text-white border border-gray-700">
+                             <button onclick="this.parentElement.remove()" class="w-10 h-10 bg-red-600 rounded-full font-black text-white">-</button>`;
+            list.appendChild(div);
+        });
+        document.getElementById('searchOptions').classList.add('hidden');
+        document.getElementById('finalBtn').innerText = "আপডেট ও ডাউনলোড";
+        alert("আপনি এখন মেমোটি এডিট করতে পারবেন।");
+    };
+
     window.addRow = () => {
         const div = document.createElement('div');
         div.className = "item-row flex gap-2 items-center";
@@ -192,7 +245,8 @@
         let total = 0, count = 0;
         prices.forEach((p, i) => { if(names[i].value && p.value) { total += parseFloat(p.value); count++; } });
         if(count === 0) return alert("পণ্য দিন!");
-        if(confirm(`মোট পদ: ${count}\nমোট: ${total} টাকা\nজেনারেট করবেন?`)) startGeneration(total, count);
+        const msg = editMode ? "মেমোটি আপডেট করবেন?" : "নতুন মেমো জেনারেট করবেন?";
+        if(confirm(`মোট পদ: ${count}\nমোট: ${total} টাকা\n${msg}`)) startGeneration(total, count);
     };
 
     async function startGeneration(total, count) {
@@ -204,7 +258,7 @@
         let items = [];
         names.forEach((n, i) => { if(n.value) items.push({n: n.value, p: prices[i].value}); });
 
-        const id = "TVS-" + Math.floor(100000 + Math.random() * 900000);
+        const id = editMode ? currentEditId : "TVS-" + Math.floor(100000 + Math.random() * 900000);
         const dateTime = document.getElementById('liveDate').innerText + " | " + document.getElementById('liveClock').innerText;
 
         const memoData = {id, cName, cPhone, items, total, dateTime};
@@ -245,7 +299,8 @@
             useCORS: true, 
             allowTaint: true,
             backgroundColor: "#ffffff",
-            width: 302
+            width: 302,
+            windowHeight: receipt.scrollHeight
         });
         const link = document.createElement('a');
         link.download = `Memo_${id}.png`;
