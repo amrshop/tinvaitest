@@ -11,19 +11,7 @@
     <style>
         body { font-family: 'Inter', 'Hind Siliguri', sans-serif; background: #0b0f1a; color: #fff; height: 100vh; overflow: hidden; }
         .receipt-font { font-family: 'Space Mono', 'Hind Siliguri', monospace; }
-        
-        #receiptDesign { 
-            width: 302px; 
-            min-height: auto; 
-            background: #fff; 
-            color: #000; 
-            padding: 15px;
-            position: fixed; 
-            top: -99999px; 
-            display: flex; 
-            flex-direction: column;
-        }
-
+        #receiptDesign { width: 302px; min-height: auto; background: #fff; color: #000; padding: 15px; position: fixed; top: -99999px; display: flex; flex-direction: column; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th, td { border: 1px solid #000; padding: 5px; font-weight: bold; font-size: 12px; text-align: left; }
         .admin-container { height: 100vh; overflow-y: auto; padding-bottom: 100px; }
@@ -65,9 +53,9 @@
                 <input type="text" id="searchInput" placeholder="TVS-XXXXXX" class="flex-1 p-3 bg-gray-800 rounded-xl outline-none text-white border border-gray-700 uppercase">
                 <button onclick="searchMemo()" id="searchBtn" class="bg-blue-600 px-6 py-3 rounded-xl font-bold text-white bn-text">সার্চ</button>
             </div>
-            <div id="searchOptions" class="hidden mt-4 flex gap-2">
-                <button onclick="quickDownload()" class="flex-1 bg-green-700 py-2 rounded-lg font-bold text-sm text-white bn-text">সরাসরি ডাউনলোড</button>
-                <button onclick="editMemo()" class="flex-1 bg-yellow-600 py-2 rounded-lg font-bold text-sm text-white bn-text">এডিট মেমো</button>
+            <div id="searchOptions" class="hidden mt-4 flex gap-2 animate-pulse">
+                <button onclick="quickDownload()" class="flex-1 bg-green-700 py-2 rounded-lg font-bold text-xs text-white bn-text">সরাসরি ডাউনলোড</button>
+                <button onclick="editMemo()" class="flex-1 bg-yellow-600 py-2 rounded-lg font-bold text-xs text-white bn-text">এডিট মেমো</button>
             </div>
         </div>
 
@@ -96,39 +84,30 @@
         <p id="rShopAddress" class="text-[10px] font-bold bn-text"></p>
         <p id="rShopPhone" class="text-[10px] font-bold"></p>
     </div>
-
     <div class="text-[10px] font-bold mb-2 flex justify-between bg-gray-100 p-1">
         <span id="resID">ID: --</span>
         <span id="resDateTime" class="bn-text">--</span>
     </div>
-
     <div class="text-[11px] font-bold mb-2 bn-text">
         <p>ক্রেতা: <span id="resName">--</span></p>
         <p>মোবাইল: <span id="resPhone">--</span></p>
     </div>
-
     <table>
         <thead id="rTableHead" class="text-white text-[10px]">
-            <tr>
-                <th>বিবরণ</th>
-                <th class="w-16 text-right">মূল্য</th>
-            </tr>
+            <tr><th>বিবরণ</th><th class="w-16 text-right">মূল্য</th></tr>
         </thead>
         <tbody id="rTableBody" class="receipt-font text-[10px]"></tbody>
     </table>
-
     <div class="mt-4 border-t-2 border-black pt-2">
         <div class="flex justify-between items-center">
             <p class="text-[12px] font-black bn-text">মোট পদ: <span id="resTotalQty">০</span></p>
             <p id="rTotalColor" class="text-[16px] font-black bn-text">সর্বমোট: <span id="resTotalAmount">০</span> টাকা</p>
         </div>
     </div>
-
     <div class="mt-6 flex justify-between px-2">
         <div class="border-t border-black text-[8px] pt-1 bn-text text-center w-20">ক্রেতার স্বাক্ষর</div>
         <div class="border-t border-black text-[8px] pt-1 bn-text text-center w-20">কর্তৃপক্ষ</div>
     </div>
-    
     <p class="text-center text-[8px] text-gray-500 mt-4 border-t pt-1 bn-text">System by Nazrul AI | 01727003670</p>
 </div>
 
@@ -148,6 +127,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     let settings = {};
+    let lastSearchData = null;
+    let editMode = false;
+    let currentEditId = null;
 
     onSnapshot(doc(db, "admin", "settings"), (doc) => {
         if(doc.exists()){
@@ -160,21 +142,17 @@
         document.getElementById('uName').innerText = settings.name;
         document.getElementById('uName').style.color = settings.color;
         document.getElementById('uAddress').innerText = settings.address;
-        document.getElementById('uLogo').src = settings.logo; // Dynamic Logo
+        document.getElementById('uLogo').src = settings.logo;
         document.getElementById('uLogo').style.borderColor = settings.color;
         document.getElementById('finalBtn').style.backgroundColor = settings.color;
-        
         document.getElementById('rShopName').innerText = settings.name;
         document.getElementById('rShopName').style.color = settings.color;
         document.getElementById('rShopAddress').innerText = settings.address;
         document.getElementById('rShopPhone').innerText = "মোবাইল: " + settings.phone;
-        document.getElementById('rLogo').src = settings.logo; // Dynamic Logo on Receipt
+        document.getElementById('rLogo').src = settings.logo;
         document.getElementById('rTableHead').style.backgroundColor = settings.color;
         document.getElementById('rTotalColor').style.color = settings.color;
     }
-
-    // ... বাকি সব JavaScript লজিক আগের মতোই থাকবে (clock, checkPass, search, confirmDialog, captureAndDownload) ...
-    // ... captureAndDownload ফাংশনটি আগের "Base64 Fix" ভার্সনটি ব্যবহার করবেন যা আপনাকে আগে দিয়েছিলাম ...
 
     const toBn = n => n.toString().replace(/\d/g, d => "০১২৩৪৫৬৭৮৯"[d]);
     function clock() {
@@ -192,6 +170,7 @@
         } else { alert(settings.error || "ভুল পাসওয়ার্ড!"); }
     };
 
+    // --- FIX: SEARCH FUNCTION ---
     window.searchMemo = async () => {
         const id = document.getElementById('searchInput').value.trim().toUpperCase();
         if(!id) return alert("আইডি দিন!");
@@ -200,7 +179,44 @@
             lastSearchData = docSnap.data();
             document.getElementById('searchOptions').classList.remove('hidden');
             alert("মেমো পাওয়া গেছে!");
-        } else { alert("পাওয়া যায়নি!"); }
+        } else { 
+            document.getElementById('searchOptions').classList.add('hidden');
+            alert("পাওয়া যায়নি!"); 
+        }
+    };
+
+    window.quickDownload = async () => {
+        updateReceiptView(lastSearchData);
+        await captureAndDownload(lastSearchData.id);
+    };
+
+    window.editMemo = () => {
+        editMode = true;
+        currentEditId = lastSearchData.id;
+        document.getElementById('cName').value = lastSearchData.cName;
+        document.getElementById('cPhone').value = lastSearchData.cPhone;
+        const list = document.getElementById('itemsList');
+        list.innerHTML = "";
+        lastSearchData.items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = "item-row flex gap-2 items-center";
+            div.innerHTML = `<input type="text" value="${item.n}" class="item-n flex-1 p-4 bg-gray-800 rounded-xl text-sm text-white border border-gray-700 bn-text">
+                             <input type="number" value="${item.p}" class="item-p w-24 p-4 bg-gray-800 rounded-xl text-sm text-white border border-gray-700">
+                             <button onclick="this.parentElement.remove()" class="w-10 h-10 bg-red-600 rounded-full font-black text-white">-</button>`;
+            list.appendChild(div);
+        });
+        document.getElementById('searchOptions').classList.add('hidden');
+        document.getElementById('finalBtn').innerText = "আপডেট ও ডাউনলোড";
+    };
+
+    // --- FIX: ADD ROW FUNCTION ---
+    window.addRow = () => {
+        const div = document.createElement('div');
+        div.className = "item-row flex gap-2 items-center";
+        div.innerHTML = `<input type="text" placeholder="পণ্যের নাম" class="item-n flex-1 p-4 bg-gray-800 rounded-xl text-sm text-white border border-gray-700 bn-text">
+                         <input type="number" placeholder="দাম" class="item-p w-24 p-4 bg-gray-800 rounded-xl text-sm text-white border border-gray-700">
+                         <button onclick="this.parentElement.remove()" class="w-10 h-10 bg-red-600 rounded-full font-black text-white">-</button>`;
+        document.getElementById('itemsList').appendChild(div);
     };
 
     window.confirmDialog = () => {
@@ -209,7 +225,7 @@
         let total = 0, count = 0;
         prices.forEach((p, i) => { if(names[i].value && p.value) { total += parseFloat(p.value); count++; } });
         if(count === 0) return alert("পণ্য দিন!");
-        if(confirm(`মোট: ${total} টাকা। জেনারেট করবেন?`)) startGeneration(total, count);
+        if(confirm(`মোট পদ: ${count}\nমোট: ${total} টাকা। জেনারেট করবেন?`)) startGeneration(total, count);
     };
 
     async function startGeneration(total, count) {
@@ -221,7 +237,8 @@
         let items = [];
         names.forEach((n, i) => { if(n.value) items.push({n: n.value, p: prices[i].value}); });
 
-        const id = "TVS-" + Math.floor(100000 + Math.random() * 900000);
+        // If editing, use old ID, else generate new
+        const id = editMode ? currentEditId : "TVS-" + Math.floor(100000 + Math.random() * 900000);
         const dateTime = document.getElementById('liveDate').innerText + " | " + document.getElementById('liveClock').innerText;
 
         const memoData = {id, cName, cPhone, items, total, dateTime};
@@ -260,7 +277,6 @@
     async function captureAndDownload(id) {
         const receipt = document.getElementById('receiptDesign');
         const rLogo = document.getElementById('rLogo');
-
         if (rLogo.complete && rLogo.naturalWidth !== 0) {
             const canvasImg = document.createElement("canvas");
             canvasImg.width = rLogo.naturalWidth;
@@ -268,7 +284,6 @@
             canvasImg.getContext("2d").drawImage(rLogo, 0, 0);
             rLogo.src = canvasImg.toDataURL("image/png");
         }
-
         await new Promise(r => setTimeout(r, 500));
         const canvas = await html2canvas(receipt, { scale: 3, useCORS: true, backgroundColor: "#ffffff", width: 302 });
         const link = document.createElement('a');
